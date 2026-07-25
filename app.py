@@ -288,13 +288,54 @@ def _as_float(value: Any, default: float) -> float:
     return float(value)
 
 
-def list_sources() -> dict[str, Any]:
-    """List the open satellite data sources this MCP server can query.
+def _first_item_id(search_result: Any) -> str:
+    if not isinstance(search_result, dict):
+        return ""
 
-    Use this zero-argument tool before search when a user or agent needs to
-    choose a source by sensor type, spatial resolution, provider, or access
-    pattern. It returns source metadata only and does not fetch imagery.
-    """
+    candidates = (
+        search_result.get("items")
+        or search_result.get("features")
+        or search_result.get("results")
+        or []
+    )
+
+    if isinstance(candidates, dict):
+        candidates = list(candidates.values())
+
+    if not isinstance(candidates, list):
+        return ""
+
+    for item in candidates:
+        if isinstance(item, dict):
+            item_id = item.get("id") or item.get("item_id")
+            if item_id:
+                return str(item_id)
+
+    return ""
+
+
+def use_first_sentinel2_item(search_result: Any, bbox: list[float]) -> tuple[str, list[float]]:
+    item_id = _first_item_id(search_result)
+    if not item_id:
+        raise gr.Error("Run Search Sentinel-2 first, then use this button to fill the returned item ID.")
+    return item_id, _as_bbox(bbox)
+
+
+def search_and_select_sentinel2_item(
+    bbox: list[float],
+    datetime_range: str | None = None,
+    max_items: int = 5,
+    max_cloud_cover: float = 20.0,
+) -> tuple[dict[str, Any], str, list[float]]:
+    result = search_open_data(bbox, datetime_range, max_items, max_cloud_cover)
+    item_id = _first_item_id(result)
+    if not item_id:
+        raise gr.Error("The Sentinel-2 search returned no item IDs. Try a wider date range or higher cloud cover.")
+    return result, item_id, _as_bbox(bbox)
+
+
+def list_sources() -> dict[str, Any]:
+    """List the open satellite data sources this MCP server can query."""
     return _list_sources()
 
 
@@ -304,22 +345,7 @@ def search_open_data(
     max_items: int = 5,
     max_cloud_cover: float = 20.0,
 ) -> dict[str, Any]:
-    """Search Sentinel-2 L2A scenes on AWS Earth Search.
-
-    Use this read-only shortcut for the simplest optical workflow: find
-    low-cloud Sentinel-2 scenes over a bbox and return compact asset URLs for
-    downstream water or spectral analysis.
-
-    Args:
-        bbox: Bounding box as [min_lon, min_lat, max_lon, max_lat].
-        datetime_range: STAC datetime range, such as 2025-01-01/2025-06-30.
-        max_items: Maximum number of scenes to return.
-        max_cloud_cover: Maximum cloud cover percentage.
-
-    Returns:
-        A JSON object with Sentinel-2 scene IDs, datetimes, cloud cover, and
-        red, green, blue, NIR, and SWIR asset URLs when available.
-    """
+    """Search Sentinel-2 L2A scenes on AWS Earth Search."""
     return _search_open_data(
         bbox=_as_bbox(bbox),
         datetime_range=_optional_text(datetime_range),
@@ -329,25 +355,12 @@ def search_open_data(
 
 
 def describe_item(item_id: str, bbox: list[float]) -> dict[str, Any]:
-    """Describe one Sentinel-2 scene as compact STAC-style metadata.
-
-    Use this after `search_open_data` when a user or agent has selected a scene
-    ID and needs basic metadata before analysis. It requires the scene ID and
-    the same bbox used to find the scene.
-
-    Args:
-        item_id: Sentinel-2 scene ID copied from `search_open_data`.
-        bbox: Bounding box as [min_lon, min_lat, max_lon, max_lat].
-
-    Returns:
-        A compact metadata dictionary with STAC version, item ID, collection,
-        datetime, bbox, selected properties, and asset count.
-    """
+    """Describe one Sentinel-2 scene as compact STAC-style metadata."""
     item_id = _clean_text(item_id)
     if not item_id:
         return {
-            "error": "Paste an item ID returned by search_open_data before describing an item.",
-            "workflow": "Run Search Sentinel-2, copy one `id`, then paste it here.",
+            "error": "Choose an item ID first.",
+            "workflow": "Run Search Sentinel-2, then click Use first returned item ID.",
         }
     return _describe_item(item_id=item_id, bbox=_as_bbox(bbox))
 
@@ -359,24 +372,7 @@ def search_catalog(
     max_items: int = 5,
     max_cloud_cover: float = 30.0,
 ) -> dict[str, Any]:
-    """Search a registered open Earth-observation catalog by source key.
-
-    Use this read-only tool after `list_sources` when source choice matters:
-    optical imagery, SAR, aerial imagery, nightlights, thermal layers, weather,
-    or ocean proxies.
-
-    Args:
-        source: Source key such as sentinel-2, landsat, naip, sentinel-1,
-            nightlights, thermal-lst, weather-goes, or sst.
-        bbox: Bounding box as [min_lon, min_lat, max_lon, max_lat].
-        datetime_range: STAC datetime range, such as 2023-06-01/2023-09-30.
-        max_items: Maximum number of scenes to return.
-        max_cloud_cover: Cloud filter for sources with cloud metadata.
-
-    Returns:
-        Source metadata and matching STAC items when STAC search is available.
-        WMS-style sources return access hints instead of STAC items.
-    """
+    """Search a registered open Earth-observation catalog by source key."""
     return _search_catalog(
         source=_clean_text(source),
         bbox=_as_bbox(bbox),
@@ -393,22 +389,7 @@ def get_nightlights(
     width: int = 512,
     height: int = 512,
 ) -> dict[str, Any]:
-    """Fetch an open nighttime-lights image URL from NASA GIBS.
-
-    Use this read-only tool for nighttime human activity, urbanization, fishing
-    fleets, gas flares, power outages, or city-light patterns.
-
-    Args:
-        bbox: Bounding box as [min_lon, min_lat, max_lon, max_lat].
-        date: Image date in YYYY-MM-DD format.
-        layer: NASA GIBS nightlights layer name.
-        width: Output image width in pixels.
-        height: Output image height in pixels.
-
-    Returns:
-        A JSON object with a ready-to-render NASA GIBS WMS image URL and
-        provenance metadata.
-    """
+    """Fetch an open nighttime-lights image URL from NASA GIBS."""
     return _get_nightlights(
         bbox=_as_bbox(bbox),
         date=_clean_text(date) or "2023-01-01",
@@ -424,21 +405,7 @@ def segment_water(
     blue_href: str,
     nir_href: str,
 ) -> dict[str, Any]:
-    """Estimate water fraction from Sentinel-2 red, green, blue, and NIR URLs.
-
-    Use this after `search_open_data` or `search_catalog` returns Sentinel-2
-    asset URLs. The current lightweight Space returns a deterministic demo
-    result unless raster dependencies such as rasterio are installed.
-
-    Args:
-        red_href: Red band asset URL.
-        green_href: Green band asset URL.
-        blue_href: Blue band asset URL.
-        nir_href: Near-infrared band asset URL.
-
-    Returns:
-        Water-fraction statistics and mode metadata.
-    """
+    """Estimate water fraction from Sentinel-2 red, green, blue, and NIR URLs."""
     hrefs = [_clean_text(red_href), _clean_text(green_href), _clean_text(blue_href), _clean_text(nir_href)]
     if not all(hrefs):
         return {
@@ -450,21 +417,7 @@ def segment_water(
 
 
 def spectral_index(index: str, band1_href: str, band2_href: str) -> dict[str, Any]:
-    """Compute a normalized spectral index over two satellite band URLs.
-
-    Use this when an agent already has two cloud-optimized GeoTIFF band URLs and
-    needs a compact NDVI or NDWI summary.
-
-    Args:
-        index: `ndvi` for vegetation with band1=NIR and band2=Red, or `ndwi`
-            for water with band1=Green and band2=NIR.
-        band1_href: First band asset URL.
-        band2_href: Second band asset URL.
-
-    Returns:
-        Mean index value and positive-class fraction. In lightweight mode, the
-        server returns a deterministic stub instead of failing.
-    """
+    """Compute a normalized spectral index over two satellite band URLs."""
     href1 = _clean_text(band1_href)
     href2 = _clean_text(band2_href)
     if not href1 or not href2:
@@ -479,15 +432,7 @@ def spectral_index(index: str, band1_href: str, band2_href: str) -> dict[str, An
 
 
 def toolbox_catalog() -> dict[str, Any]:
-    """List planned remote-sensing ToolBox model families.
-
-    Use this zero-argument read-only tool when a user or reviewer asks what
-    analysis capabilities the project intends to expose beyond current water
-    and spectral-index tools.
-
-    Returns:
-        A catalog of planned model families and currently exposed analysis tools.
-    """
+    """List planned remote-sensing ToolBox model families."""
     return _toolbox_catalog()
 
 
@@ -500,24 +445,7 @@ def create_stac_item(
     platform: str = "HaiShao-1",
     frequency_band: str = "C",
 ) -> dict[str, Any]:
-    """Create a STAC Item for a SAR scene.
-
-    Use this deterministic transformation tool to represent SAR scene metadata
-    with STAC SAR and Projection extension fields. It returns JSON only; it
-    does not upload imagery or register the item in a catalog.
-
-    Args:
-        item_id: Unique SAR scene ID.
-        bbox: Bounding box as [min_lon, min_lat, max_lon, max_lat].
-        datetime_iso: Acquisition datetime in ISO-8601 format.
-        hh_href: HH polarization asset URL.
-        hv_href: Optional HV polarization asset URL.
-        platform: SAR platform name.
-        frequency_band: SAR frequency band, such as C or L.
-
-    Returns:
-        A STAC Item dictionary with geometry, properties, assets, and links.
-    """
+    """Create a STAC Item for a SAR scene."""
     if not _clean_text(item_id):
         return {"error": "Provide a SAR item ID."}
     if not _clean_text(hh_href):
@@ -574,7 +502,7 @@ with gr.Blocks(
 
             **Try this:** Hainan coast, `2025-01-01/2025-06-30`, max cloud cover `20`.
 
-            **Connects to:** copy an item `id` into `describe_item`, or copy red/green/blue/NIR
+            **Connects to:** use the returned item ID in `describe_item`, or copy red/green/blue/NIR
             asset URLs into `segment_water` and `spectral_index`.
             """
         )
@@ -631,20 +559,37 @@ with gr.Blocks(
 
             **Use for:** inspecting one Sentinel-2 scene selected from `search_open_data`.
 
-            **Input:** paste one item ID from Sentinel-2 search and reuse the same bbox.
-
-            **Output:** compact STAC-style metadata: version, collection, datetime, bbox,
-            cloud cover, platform, GSD, projection, and asset count.
+            You do not need to manually search through the JSON. First run **Search Sentinel-2**,
+            then click **Use first returned item ID** here. If you want a fresh scene, click
+            **Regenerate search and use first ID**.
             """
         )
         item_id = gr.Textbox(
             value="",
-            placeholder="Paste an id returned by Search Sentinel-2",
-            label="Sentinel-2 item ID",
+            placeholder="Click a button below to fill this from Search Sentinel-2",
+            label="Selected Sentinel-2 item ID",
+            info="This should be the `id` field returned by Search Sentinel-2.",
         )
         describe_bbox = gr.JSON(value=[109.0, 18.0, 111.0, 20.0], label="Bounding box")
+
+        with gr.Row():
+            gr.Button("Use first returned item ID").click(
+                use_first_sentinel2_item,
+                inputs=[s2_out, s2_bbox],
+                outputs=[item_id, describe_bbox],
+                api_name=False,
+                queue=False,
+            )
+            gr.Button("Regenerate search and use first ID").click(
+                search_and_select_sentinel2_item,
+                inputs=[s2_bbox, s2_dates, s2_max_items, s2_cloud],
+                outputs=[s2_out, item_id, describe_bbox],
+                api_name=False,
+                queue=False,
+            )
+
         describe_out = gr.JSON(label="Item metadata")
-        gr.Button("Describe item", variant="primary").click(
+        gr.Button("Describe selected item", variant="primary").click(
             describe_item,
             inputs=[item_id, describe_bbox],
             outputs=describe_out,
