@@ -187,4 +187,4 @@ with gr.Blocks(title="Remote Sensing MCP Demo") as demo:
 
 
 if __name__ == "__main__":
-    demo.launch(mcp_server=True)
+    demo.launch(mcp_server=True, ssr_mode=False, show_error=True)

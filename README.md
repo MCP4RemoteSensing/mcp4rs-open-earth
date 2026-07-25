@@ -11,7 +11,7 @@ tags:
   - mcp
   - remote-sensing
   - earth-observation
-  - stac
+  - stacco
 ---
 
 # MCP4RS: Open Earth Remote Sensing MCP

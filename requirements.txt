@@ -1,5 +1,5 @@
 # Minimal dependencies for the live demo (real STAC search).
-gradio[mcp]
+gradio[mcp]==6.20.0
 mcp[cli]>=1.2
 pystac-client>=0.8
 requests>=2.31
