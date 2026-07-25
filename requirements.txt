@@ -1,9 +1,5 @@
-# Minimal dependencies for the live demo (real STAC search).
 gradio[mcp]==6.20.0
-mcp[cli]>=1.2
-pystac-client>=0.8
+mcp[cli]==1.28.1
+pystac-client==0.9.0
 requests>=2.31
 numpy>=1.24
-
-# Optional — real inference & higher-resolution / Planetary Computer assets:
-#   pip install rasterio numpy planetary-computer matplotlib
