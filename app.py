@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-from datetime import date, timedelta
 from typing import Any
 
 import gradio as gr
@@ -68,76 +67,25 @@ THEME_CSS = """
   color: var(--mcp-muted);
   font-size: 0.92rem;
 }
-
-.mcp-scenario-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 10px;
-}
-
-.mcp-step {
-  border: 1px solid rgba(11, 110, 143, 0.16);
-  border-radius: 8px;
-  padding: 10px 12px;
-  background: rgba(255, 255, 255, 0.72);
-}
-
-.mcp-step b {
-  color: var(--mcp-ocean);
-}
 """
 
 
 INTRO_MD = """
 <div class="mcp-hero">
 
-# MCP4RS Open Earth Chat
+# MCP4RS Open Earth Explorer
 
-Ask a normal geospatial question. The demo shows how a conventional MCP client
-such as ChatGPT, Hugging Face Chat, Claude, an IDE assistant, or a scientific
-agent can discover MCP tools, read their schemas, call them, and return an answer.
+This Space is a human-friendly explorer for the **MCP4RS remote-sensing MCP server**.
+General users can try the tools visually. Developers can connect MCP clients to the
+same tool surface.
 
 <div class="mcp-badges">
-<span>Chat-first MCP demo</span><span>Open Earth</span><span>Remote Sensing</span><span>STAC</span><span>NASA GIBS</span><span>Sentinel</span>
+<span>MCP</span><span>Open Earth</span><span>Remote Sensing</span><span>STAC</span><span>NASA GIBS</span><span>Sentinel</span>
 </div>
 
 </div>
-"""
 
-
-LANDING_DEMO_MD = """
-## Why MCP for remote sensing?
-
-Traditional geospatial APIs require complex SDKs, STAC/WMS knowledge, collection
-names, band names, cloud filters, and geospatial parameters. By wrapping those
-capabilities in MCP, an AI client can discover the available tools and execute
-the right sequence on behalf of a user.
-
-This landing demo is intentionally lightweight: it behaves like an MCP-aware chat
-client, but it does not require an external LLM API key. The buttons below show
-several user types and how their requests map to the 9 MCP tools.
-"""
-
-
-LANDING_TOOL_MAP_MD = """
-## How the chat demo uses the 9 MCP tools
-
-| MCP tool | What it does | Used in landing demo |
-| --- | --- | --- |
-| `list_sources` | Shows available Earth-observation sources and resolutions. | Every scenario starts by checking the source registry. |
-| `search_open_data` | Searches Sentinel-2 L2A scenes with bbox, dates, and cloud filter. | Environmental analyst water-fraction scenario. |
-| `describe_item` | Inspects one returned Sentinel-2 STAC item. | Environmental analyst scene-inspection step. |
-| `search_catalog` | Searches or explains any registered source: Sentinel-1, Landsat, NAIP, nightlights, thermal, weather, SST. | City, disaster, agriculture, and source-comparison scenarios. |
-| `get_nightlights` | Generates a NASA GIBS nighttime-lights image URL. | City planner and human-activity scenario. |
-| `segment_water` | Computes or demos water fraction from red, green, blue, and NIR assets. | Environmental analyst scenario. |
-| `spectral_index` | Computes NDVI or NDWI from two band URLs. | Agriculture and vegetation scenario. |
-| `toolbox_catalog` | Lists planned remote-sensing model families. | Disaster response and developer scenarios. |
-| `create_stac_item` | Converts SAR scene metadata into STAC Item JSON. | SAR data publisher scenario. |
-"""
-
-
-TOOL_EXPLORER_INTRO_MD = """
-## What this MCP is about
+### What this MCP is about
 
 MCP4RS exposes open Earth-observation discovery, image-access helpers, lightweight
 remote-sensing analysis, and SAR-to-STAC conversion as agent-callable tools.
@@ -308,40 +256,102 @@ ACKNOWLEDGEMENTS_MD = """
 """
 
 
-LANDING_SCENARIOS: dict[str, dict[str, str]] = {
-    "Environmental analyst": {
-        "button": "Water over Hainan",
+CHAT_LANDING_MD = """
+## MCP client demo
+
+This first tab shows what a normal AI client, such as ChatGPT, Claude, Hugging Face
+Chat, an IDE assistant, or a scientific agent, does with the MCP server.
+
+Instead of asking the user to know STAC collections, WMS parameters, band names, or
+SAR metadata schemas, the client reads the MCP tool catalog, chooses the right tools,
+passes structured inputs, and turns the tool results back into a plain-language answer.
+
+**How to use this tab**
+
+1. Choose one sample user request.
+2. Click **Run fixed sample answer** to see a stable answer that will not call an
+   external LLM or live geospatial service.
+3. Click **Show how the 9 MCP tools connect** to see exactly how the landing demo
+   maps user requests to the nine MCP functions exposed by this Space.
+"""
+
+
+TOOL_CONNECTION_MD = """
+## How the landing demo uses the 9 MCP tools
+
+| Stage | MCP tool | Main output | Usually feeds into |
+| --- | --- | --- | --- |
+| Discover data options | `list_sources` | Source keys, providers, resolutions | `search_catalog`, `search_open_data`, `get_nightlights` |
+| Search Sentinel-2 directly | `search_open_data` | Scene IDs and red/green/blue/NIR asset URLs | `describe_item`, `segment_water`, `spectral_index` |
+| Search a chosen catalog | `search_catalog` | STAC items or source-specific access hints | `describe_item`, `get_nightlights`, SAR workflows |
+| Inspect one optical scene | `describe_item` | Compact STAC-style metadata | User answer, report, or next analysis step |
+| Fetch nighttime lights | `get_nightlights` | NASA GIBS WMS image URL | City lights, outage, fishing, urban-growth view |
+| Estimate water | `segment_water` | Water fraction | Environmental or disaster response answer |
+| Compute an index | `spectral_index` | NDVI or NDWI summary | Vegetation or water condition answer |
+| Discover analysis models | `toolbox_catalog` | Planned model families | Tool choice explanation and roadmap |
+| Standardize SAR metadata | `create_stac_item` | STAC Item JSON with SAR metadata | Publishable SAR catalog record |
+
+### Common chains
+
+| User request | MCP chain |
+| --- | --- |
+| Find water over Hainan | `list_sources` -> `search_open_data` -> `describe_item` -> `segment_water` |
+| Show city nightlights | `list_sources` -> `search_catalog` -> `get_nightlights` |
+| Use cloud-safe imagery after a storm | `list_sources` -> `search_catalog` -> `create_stac_item` |
+| Compute vegetation condition | `list_sources` -> `search_open_data` -> `spectral_index` -> `toolbox_catalog` |
+| Publish a SAR scene | `create_stac_item` |
+| Explain how an MCP client uses this Space | all 9 tools are available through the Gradio MCP endpoint |
+"""
+
+
+CHAT_DEMOS: dict[str, dict[str, Any]] = {
+    "Water over Hainan": {
+        "user_type": "Environmental analyst",
         "prompt": "Find Sentinel-2 imagery over Hainan from last month with under 10% cloud cover, and compute the water fraction.",
-        "route": "`list_sources` -> `search_open_data` -> `describe_item` -> `segment_water`",
+        "route": ["list_sources", "search_open_data", "describe_item", "segment_water"],
+        "answer": "I would search Sentinel-2 over the Hainan bounding box, select a low-cloud scene, inspect its metadata, then pass the returned red, green, blue, and NIR asset URLs to the water tool. In the lightweight Space, the water step may return the stable demo-mode water fraction when rasterio is not installed.",
     },
-    "City planner": {
-        "button": "Nightlights city view",
-        "prompt": "Show nighttime lights over the Pearl River Delta and explain what human-activity signal the MCP returns.",
-        "route": "`list_sources` -> `search_catalog` -> `get_nightlights`",
+    "Nightlights city view": {
+        "user_type": "City planner",
+        "prompt": "Show a nighttime-lights view for the Pearl River Delta and explain which open source provides it.",
+        "route": ["list_sources", "search_catalog", "get_nightlights"],
+        "answer": "I would identify the nightlights source, confirm that it is a NASA GIBS WMS source rather than a STAC catalog, then build a ready-to-render nighttime-lights image URL for the requested bounding box and date.",
     },
-    "Disaster responder": {
-        "button": "Cloud-safe SAR",
-        "prompt": "I need imagery that can still work through clouds for a coastal disaster-response workflow.",
-        "route": "`list_sources` -> `search_catalog(source='sentinel-1')` -> `toolbox_catalog`",
+    "Cloud-safe SAR": {
+        "user_type": "Disaster responder",
+        "prompt": "I need cloud-safe imagery near Hainan after a storm. Which source should I use, and how would it become a standard catalog item?",
+        "route": ["list_sources", "search_catalog", "create_stac_item"],
+        "answer": "I would choose Sentinel-1 SAR because radar can observe through clouds and at night. After finding or receiving SAR asset URLs, the metadata can be converted into a STAC Item so downstream clients can index and reuse it.",
     },
-    "Agriculture researcher": {
-        "button": "Vegetation index",
-        "prompt": "Search for open imagery that can support vegetation monitoring and compute a simple NDVI-style index.",
-        "route": "`list_sources` -> `search_catalog(source='landsat')` -> `spectral_index`",
+    "Vegetation index": {
+        "user_type": "Agriculture researcher",
+        "prompt": "Find recent Sentinel-2 imagery for an agricultural area and compute a vegetation index summary.",
+        "route": ["list_sources", "search_open_data", "spectral_index", "toolbox_catalog"],
+        "answer": "I would search Sentinel-2 because it provides optical red and NIR bands, then call the spectral-index tool as NDVI. The toolbox catalog explains how this lightweight index relates to the broader analysis-model roadmap.",
     },
-    "SAR data publisher": {
-        "button": "SAR to STAC",
-        "prompt": "Convert a HaiShao SAR scene with HH and HV assets into a publishable STAC Item.",
-        "route": "`create_stac_item`",
+    "SAR to STAC": {
+        "user_type": "Data publisher",
+        "prompt": "Convert a SAR scene with HH and HV files into a STAC Item that other platforms can understand.",
+        "route": ["create_stac_item"],
+        "answer": "I would package the scene ID, acquisition time, bounding box, platform, frequency band, and HH/HV asset URLs into a STAC Item with SAR and Projection extension metadata.",
     },
-    "MCP developer": {
-        "button": "Client setup",
-        "prompt": "Explain how ChatGPT, Hugging Face Chat, Claude, or another MCP client would discover and call these 9 tools.",
-        "route": "`/tools` discovery -> JSON schemas -> selected MCP tool calls",
+    "Client setup": {
+        "user_type": "MCP developer",
+        "prompt": "How would a conventional MCP client discover and use this Space?",
+        "route": [
+            "list_sources",
+            "search_open_data",
+            "search_catalog",
+            "describe_item",
+            "get_nightlights",
+            "segment_water",
+            "spectral_index",
+            "toolbox_catalog",
+            "create_stac_item",
+        ],
+        "answer": "The client connects to the Gradio MCP endpoint, reads the tool catalog and JSON schemas, selects the relevant tools for the user request, sends structured arguments, and combines the returned JSON into a final response.",
     },
 }
-
-SCENARIO_OPTIONS = list(LANDING_SCENARIOS)
 
 
 def _clean_text(value: str | None) -> str:
@@ -376,26 +386,121 @@ def _as_float(value: Any, default: float) -> float:
     return float(value)
 
 
-def _from_json_component(value: Any) -> Any:
-    if isinstance(value, str):
-        try:
-            return json.loads(value)
-        except json.JSONDecodeError:
-            return value
-    return value
+def _tool_trace_step(tool_name: str, position: int) -> dict[str, Any]:
+    tool_notes = {
+        "list_sources": {
+            "input": "none",
+            "output": "source registry with provider, collection, resolution, and access notes",
+        },
+        "search_open_data": {
+            "input": "bbox, datetime_range, max_items, max_cloud_cover",
+            "output": "Sentinel-2 scene IDs plus red, green, blue, NIR, SWIR asset URLs",
+        },
+        "search_catalog": {
+            "input": "source key, bbox, datetime_range, max_items, optional cloud filter",
+            "output": "STAC items or an access hint for non-STAC sources such as nightlights",
+        },
+        "describe_item": {
+            "input": "item_id and bbox",
+            "output": "compact STAC-style metadata for one Sentinel-2 scene",
+        },
+        "get_nightlights": {
+            "input": "bbox, date, layer, width, height",
+            "output": "NASA GIBS WMS image URL",
+        },
+        "segment_water": {
+            "input": "red, green, blue, and NIR asset URLs",
+            "output": "water fraction and model mode",
+        },
+        "spectral_index": {
+            "input": "index name plus two band asset URLs",
+            "output": "mean normalized index and positive-class fraction",
+        },
+        "toolbox_catalog": {
+            "input": "none",
+            "output": "remote-sensing model families and currently exposed analysis tools",
+        },
+        "create_stac_item": {
+            "input": "SAR item ID, bbox, datetime, HH/HV asset URLs, platform, frequency band",
+            "output": "STAC Item JSON with SAR and Projection extension metadata",
+        },
+    }
+    note = tool_notes.get(tool_name, {"input": "structured JSON", "output": "tool result"})
+    return {"step": position, "tool": tool_name, **note}
 
 
-def _candidate_items(search_result: Any) -> list[Any]:
-    search_result = _from_json_component(search_result)
+def _format_demo_reply(label: str, request_text: str, demo: dict[str, Any]) -> str:
+    route = " -> ".join(f"`{tool}`" for tool in demo["route"])
+    steps = "\n".join(
+        f"| {idx} | `{tool}` | {_tool_trace_step(tool, idx)['input']} | {_tool_trace_step(tool, idx)['output']} |"
+        for idx, tool in enumerate(demo["route"], start=1)
+    )
+    return f"""## Fixed sample answer: {label}
+
+**User request:** {request_text}
+
+**User type:** {demo["user_type"]}
+
+**Selected MCP route:** {route}
+
+**How the client uses the tools:**
+
+| Step | MCP tool | Input passed by the client | Output returned to the client |
+| --- | --- | --- | --- |
+{steps}
+
+**Plain-language answer:**
+
+{demo["answer"]}
+
+**Why this does not error:** this landing-page answer is deterministic Markdown.
+It does not call an external LLM, live STAC service, or raster library. The detailed
+tabs below still run the actual MCP tool wrappers one by one.
+"""
+
+
+def run_chat_demo(label: str, user_prompt: str) -> str:
+    """Return a stable Markdown sample answer without registering another public MCP tool."""
+    try:
+        demo = CHAT_DEMOS.get(label) or CHAT_DEMOS["Water over Hainan"]
+        request_text = _clean_text(user_prompt) or demo["prompt"]
+        return _format_demo_reply(label, request_text, demo)
+    except Exception as exc:
+        return f"""## Fixed sample answer
+
+The landing-page demo could not format the selected scenario, but the app is still
+running and the nine MCP tools below are unchanged.
+
+**Fallback request:** Find Sentinel-2 imagery over Hainan and compute water fraction.
+
+**Fallback MCP route:** `list_sources` -> `search_open_data` -> `describe_item` -> `segment_water`
+
+**Fallback answer:** The client discovers available sources, searches Sentinel-2,
+inspects a returned item, and passes red/green/blue/NIR asset URLs to the water
+fraction tool.
+
+**Internal formatting error:** `{type(exc).__name__}: {exc}`
+"""
+
+
+def show_tool_connections() -> str:
+    """Explain the nine MCP tools through a plain Markdown output."""
+    return TOOL_CONNECTION_MD
+
+
+def load_chat_prompt(label: str) -> str:
+    demo = CHAT_DEMOS.get(label) or CHAT_DEMOS["Water over Hainan"]
+    return demo["prompt"]
+
+
+def _first_item_id(search_result: Any) -> str:
     if not isinstance(search_result, dict):
-        return []
+        return ""
 
     candidates = (
         search_result.get("items")
         or search_result.get("features")
         or search_result.get("results")
-        or search_result.get("scenes")
-        or search_result.get("matches")
         or []
     )
 
@@ -403,82 +508,22 @@ def _candidate_items(search_result: Any) -> list[Any]:
         candidates = list(candidates.values())
 
     if not isinstance(candidates, list):
-        return []
+        return ""
 
-    return candidates
-
-
-def _first_item(search_result: Any) -> dict[str, Any]:
-    for item in _candidate_items(search_result):
-        if isinstance(item, dict):
-            return item
-    return {}
-
-
-def _first_item_id(search_result: Any) -> str:
-    for item in _candidate_items(search_result):
+    for item in candidates:
         if isinstance(item, dict):
             item_id = item.get("id") or item.get("item_id")
             if item_id:
                 return str(item_id)
+
     return ""
 
 
-def _previous_month_range() -> str:
-    first_this_month = date.today().replace(day=1)
-    last_previous_month = first_this_month - timedelta(days=1)
-    first_previous_month = last_previous_month.replace(day=1)
-    return f"{first_previous_month.isoformat()}/{last_previous_month.isoformat()}"
-
-
-def _safe_tool_call(name: str, fn: Any, *args: Any, **kwargs: Any) -> dict[str, Any]:
-    try:
-        result = fn(*args, **kwargs)
-        if isinstance(result, dict):
-            return result
-        return {"result": result}
-    except Exception as exc:
-        return {
-            "mode": "fallback",
-            "tool": name,
-            "error": str(exc),
-            "note": "The landing demo kept running and used a readable fallback summary.",
-        }
-
-
-def _trace_step(name: str, purpose: str, result: dict[str, Any]) -> dict[str, Any]:
-    compact = {
-        "count": result.get("count"),
-        "id": result.get("id"),
-        "source": result.get("source"),
-        "mode": result.get("mode"),
-        "water_fraction": result.get("water_fraction"),
-        "index": result.get("index"),
-        "positive_fraction": result.get("positive_fraction"),
-        "image_url": result.get("image_url"),
-        "error": result.get("error"),
-        "note": result.get("note"),
-    }
-    return {
-        "tool": name,
-        "purpose": purpose,
-        "output_summary": {k: v for k, v in compact.items() if v is not None},
-    }
-
-
-def _selected_item_status(item_id: str) -> str:
-    return f"Selected item ID: `{item_id}`"
-
-
-def store_sentinel2_search(search_result: Any) -> Any:
-    return _from_json_component(search_result)
-
-
-def use_first_sentinel2_item(search_result: Any, bbox: list[float]) -> tuple[str, list[float], str]:
+def use_first_sentinel2_item(search_result: Any, bbox: list[float]) -> tuple[str, list[float]]:
     item_id = _first_item_id(search_result)
     if not item_id:
-        raise gr.Error("No item ID is saved yet. Click 'Search now and fill first item ID' or run Search Sentinel-2 first.")
-    return item_id, _as_bbox(bbox), _selected_item_status(item_id)
+        raise gr.Error("Run Search Sentinel-2 first, then use this button to fill the returned item ID.")
+    return item_id, _as_bbox(bbox)
 
 
 def search_and_select_sentinel2_item(
@@ -486,12 +531,12 @@ def search_and_select_sentinel2_item(
     datetime_range: str | None = None,
     max_items: int = 5,
     max_cloud_cover: float = 20.0,
-) -> tuple[dict[str, Any], dict[str, Any], str, list[float], str]:
+) -> tuple[dict[str, Any], str, list[float]]:
     result = search_open_data(bbox, datetime_range, max_items, max_cloud_cover)
     item_id = _first_item_id(result)
     if not item_id:
         raise gr.Error("The Sentinel-2 search returned no item IDs. Try a wider date range or higher cloud cover.")
-    return result, result, item_id, _as_bbox(bbox), _selected_item_status(item_id)
+    return result, item_id, _as_bbox(bbox)
 
 
 def list_sources() -> dict[str, Any]:
@@ -621,334 +666,65 @@ def create_stac_item(
     )
 
 
-def _select_landing_scenario(message: str, selected_label: str) -> str:
-    text = _clean_text(message).lower()
-    if any(word in text for word in ("night", "lights", "city", "urban", "outage", "human activity")):
-        return "City planner"
-    if any(word in text for word in ("cloud", "disaster", "sar", "radar", "storm", "flood")):
-        return "Disaster responder"
-    if any(word in text for word in ("vegetation", "crop", "agriculture", "ndvi", "farm")):
-        return "Agriculture researcher"
-    if any(word in text for word in ("stac item", "haishao", "hh", "hv", "publish", "sar scene")):
-        return "SAR data publisher"
-    if any(word in text for word in ("chatgpt", "claude", "hugging face", "client", "schema", "json-rpc", "endpoint")):
-        return "MCP developer"
-    if any(word in text for word in ("water", "sentinel-2", "hainan", "cloud cover", "ndwi")):
-        return "Environmental analyst"
-    return selected_label if selected_label in LANDING_SCENARIOS else "Environmental analyst"
-
-
-def _scenario_header(label: str, prompt: str) -> list[str]:
-    scenario = LANDING_SCENARIOS[label]
-    return [
-        f"**User type:** {label}",
-        f"**User request:** {prompt}",
-        f"**MCP route:** {scenario['route']}",
-    ]
-
-
-def _format_trace_table(trace: list[dict[str, Any]]) -> str:
-    rows = ["| Step | Tool | What the app does |", "| --- | --- | --- |"]
-    for idx, step in enumerate(trace, start=1):
-        rows.append(f"| {idx} | `{step['tool']}` | {step['purpose']} |")
-    return "\n".join(rows)
-
-
-def _run_water_landing(prompt: str) -> tuple[str, dict[str, Any]]:
-    bbox = [109.0, 18.0, 111.0, 20.0]
-    dynamic_dates = _previous_month_range()
-    trace: list[dict[str, Any]] = []
-
-    sources = _safe_tool_call("list_sources", list_sources)
-    trace.append(_trace_step("list_sources", "Discover that Sentinel-2 is available for 10 m optical imagery.", sources))
-
-    search_result = _safe_tool_call("search_open_data", search_open_data, bbox, dynamic_dates, 5, 10.0)
-    item = _first_item(search_result)
-    if not item:
-        search_result = _safe_tool_call("search_open_data", search_open_data, bbox, "2025-01-01/2025-06-30", 5, 20.0)
-        item = _first_item(search_result)
-    trace.append(_trace_step("search_open_data", "Search Sentinel-2 scenes by bbox, date range, and cloud-cover filter.", search_result))
-
-    item_id = str(item.get("id") or "demo-sentinel-2-item")
-    if item.get("id"):
-        item_details = _safe_tool_call("describe_item", describe_item, item_id, bbox)
-    else:
-        item_details = {
-            "id": item_id,
-            "mode": "fallback",
-            "note": "No live STAC item was returned, so the landing demo used a demo item label.",
-        }
-    trace.append(_trace_step("describe_item", "Inspect the selected scene metadata before analysis.", item_details))
-
-    assets = item.get("assets", {}) if isinstance(item, dict) else {}
-    water_result = _safe_tool_call(
-        "segment_water",
-        segment_water,
-        assets.get("red", "demo://sentinel-2/red.tif"),
-        assets.get("green", "demo://sentinel-2/green.tif"),
-        assets.get("blue", "demo://sentinel-2/blue.tif"),
-        assets.get("nir", "demo://sentinel-2/nir.tif"),
-    )
-    trace.append(_trace_step("segment_water", "Use red, green, blue, and NIR asset URLs to estimate water fraction.", water_result))
-
-    water_fraction = water_result.get("water_fraction", "available in the JSON result")
-    response = "\n\n".join(
-        _scenario_header("Environmental analyst", prompt)
-        + [
-            _format_trace_table(trace),
-            (
-                "**Final answer:** I selected a Sentinel-2 workflow for Hainan, "
-                f"used `{item_id}` as the scene ID, and computed a water-fraction "
-                f"summary of **{water_fraction}**. In this lightweight Space, the "
-                "analysis may run in demo mode if raster libraries are not installed."
-            ),
-        ]
-    )
-    return response, {"scenario": "Environmental analyst", "trace": trace, "result": water_result}
-
-
-def _run_city_landing(prompt: str) -> tuple[str, dict[str, Any]]:
-    bbox = [113.8, 22.1, 114.5, 22.8]
-    trace: list[dict[str, Any]] = []
-    sources = _safe_tool_call("list_sources", list_sources)
-    trace.append(_trace_step("list_sources", "Discover that nightlights are available as a NASA GIBS WMS source.", sources))
-    catalog = _safe_tool_call("search_catalog", search_catalog, "nightlights", bbox, "2023-01-01/2023-01-01", 1, 30.0)
-    trace.append(_trace_step("search_catalog", "Recognize that nightlights use WMS imagery rather than STAC scene items.", catalog))
-    nightlights = _safe_tool_call("get_nightlights", get_nightlights, bbox, "2023-01-01", "VIIRS_SNPP_DayNightBand_ENCC", 512, 512)
-    trace.append(_trace_step("get_nightlights", "Generate a ready-to-render nighttime-lights image URL.", nightlights))
-
-    image_url = nightlights.get("image_url", "available in the JSON result")
-    response = "\n\n".join(
-        _scenario_header("City planner", prompt)
-        + [
-            _format_trace_table(trace),
-            (
-                "**Final answer:** I used the nightlights source for a human-activity view "
-                "over the Pearl River Delta. The MCP returns a NASA GIBS image URL that a "
-                f"client can render directly: `{image_url}`."
-            ),
-        ]
-    )
-    return response, {"scenario": "City planner", "trace": trace, "result": nightlights}
-
-
-def _run_disaster_landing(prompt: str) -> tuple[str, dict[str, Any]]:
-    bbox = [109.0, 18.0, 111.0, 20.0]
-    trace: list[dict[str, Any]] = []
-    sources = _safe_tool_call("list_sources", list_sources)
-    trace.append(_trace_step("list_sources", "Find all-weather radar sources for cloudy coastal conditions.", sources))
-    sar_search = _safe_tool_call("search_catalog", search_catalog, "sentinel-1", bbox, "2025-01-01/2025-06-30", 3, 30.0)
-    trace.append(_trace_step("search_catalog", "Search Sentinel-1 SAR scenes that can complement optical imagery.", sar_search))
-    toolbox = _safe_tool_call("toolbox_catalog", toolbox_catalog)
-    trace.append(_trace_step("toolbox_catalog", "Check which downstream model families can support response workflows.", toolbox))
-
-    response = "\n\n".join(
-        _scenario_header("Disaster responder", prompt)
-        + [
-            _format_trace_table(trace),
-            (
-                "**Final answer:** For clouds, smoke, or nighttime response, the app chooses "
-                "`sentinel-1` SAR through `search_catalog`, then checks the ToolBox catalog "
-                "for segmentation, detection, and change-detection model families."
-            ),
-        ]
-    )
-    return response, {"scenario": "Disaster responder", "trace": trace, "result": sar_search}
-
-
-def _run_agriculture_landing(prompt: str) -> tuple[str, dict[str, Any]]:
-    bbox = [109.0, 18.0, 111.0, 20.0]
-    trace: list[dict[str, Any]] = []
-    sources = _safe_tool_call("list_sources", list_sources)
-    trace.append(_trace_step("list_sources", "Discover optical sources suitable for vegetation monitoring.", sources))
-    catalog = _safe_tool_call("search_catalog", search_catalog, "landsat", bbox, "2025-01-01/2025-06-30", 3, 30.0)
-    trace.append(_trace_step("search_catalog", "Search Landsat as a long-archive vegetation-monitoring source.", catalog))
-    ndvi = _safe_tool_call("spectral_index", spectral_index, "ndvi", "demo://landsat/nir.tif", "demo://landsat/red.tif")
-    trace.append(_trace_step("spectral_index", "Compute an NDVI-style normalized difference index.", ndvi))
-
-    response = "\n\n".join(
-        _scenario_header("Agriculture researcher", prompt)
-        + [
-            _format_trace_table(trace),
-            (
-                "**Final answer:** I selected an optical catalog route and used `spectral_index` "
-                "for an NDVI-style vegetation summary. The same pattern can switch to NDWI for "
-                "water or to Sentinel-2 for higher-resolution optical monitoring."
-            ),
-        ]
-    )
-    return response, {"scenario": "Agriculture researcher", "trace": trace, "result": ndvi}
-
-
-def _run_publisher_landing(prompt: str) -> tuple[str, dict[str, Any]]:
-    bbox = [109.0, 18.0, 111.0, 20.0]
-    trace: list[dict[str, Any]] = []
-    stac = _safe_tool_call(
-        "create_stac_item",
-        create_stac_item,
-        "HAISHAO1_SAR_20250118_HAINAN_0001",
-        bbox,
-        "2025-01-18T03:21:00Z",
-        "s3://example/HH.tif",
-        "s3://example/HV.tif",
-        "HaiShao-1",
-        "C",
-    )
-    trace.append(_trace_step("create_stac_item", "Turn raw SAR metadata and HH/HV asset links into STAC Item JSON.", stac))
-
-    response = "\n\n".join(
-        _scenario_header("SAR data publisher", prompt)
-        + [
-            _format_trace_table(trace),
-            (
-                "**Final answer:** I converted the SAR scene into a STAC Item with geometry, "
-                "bbox, datetime, SAR extension metadata, and HH/HV assets. This is the data "
-                "standardization side of the MCP."
-            ),
-        ]
-    )
-    return response, {"scenario": "SAR data publisher", "trace": trace, "result": stac}
-
-
-def _run_developer_landing(prompt: str) -> tuple[str, dict[str, Any]]:
-    trace: list[dict[str, Any]] = []
-    sources = _safe_tool_call("list_sources", list_sources)
-    trace.append(_trace_step("list_sources", "Show how a client first discovers available data sources.", sources))
-    toolbox = _safe_tool_call("toolbox_catalog", toolbox_catalog)
-    trace.append(_trace_step("toolbox_catalog", "Show how a client discovers available analysis model families.", toolbox))
-
-    response = "\n\n".join(
-        _scenario_header("MCP developer", prompt)
-        + [
-            (
-                "| MCP client action | What happens |\n"
-                "| --- | --- |\n"
-                "| Connect to endpoint | The client opens `/gradio_api/mcp/`. |\n"
-                "| Discover tools | It reads the tool catalog and JSON schemas. |\n"
-                "| Choose a route | It maps the natural-language request to one or more tools. |\n"
-                "| Execute calls | It sends structured arguments such as bbox, date range, source, or asset URLs. |\n"
-                "| Compose answer | It turns returned JSON into a readable response. |"
-            ),
-            (
-                "**Final answer:** The landing chat is a stable simulation of that MCP-client "
-                "behavior. The detailed tabs still expose exactly the 9 callable tools for "
-                "manual testing and schema discovery."
-            ),
-        ]
-    )
-    return response, {"scenario": "MCP developer", "trace": trace, "result": {"endpoint": "/gradio_api/mcp/"}}
-
-
-def run_landing_demo(
-    message: str,
-    selected_label: str,
-    history: list[tuple[str, str]] | None,
-) -> tuple[list[tuple[str, str]], dict[str, Any]]:
-    default_scenario = LANDING_SCENARIOS.get(selected_label, LANDING_SCENARIOS["Environmental analyst"])
-    prompt = _clean_text(message) or default_scenario["prompt"]
-    label = _select_landing_scenario(prompt, selected_label)
-    runners = {
-        "Environmental analyst": _run_water_landing,
-        "City planner": _run_city_landing,
-        "Disaster responder": _run_disaster_landing,
-        "Agriculture researcher": _run_agriculture_landing,
-        "SAR data publisher": _run_publisher_landing,
-        "MCP developer": _run_developer_landing,
-    }
-    response, trace = runners[label](prompt)
-    updated_history = list(history or [])
-    updated_history.append((prompt, response))
-    return updated_history, trace
-
-
-def set_landing_scenario(label: str) -> tuple[str, str]:
-    scenario = LANDING_SCENARIOS[label]
-    return label, scenario["prompt"]
-
-
 with gr.Blocks(
     title="MCP4RS Open Earth Explorer",
     theme=gr.themes.Soft(primary_hue="blue", secondary_hue="green"),
     css=THEME_CSS,
 ) as demo:
-    latest_s2_result = gr.State(value=None)
-
     gr.Markdown(INTRO_MD)
 
     with gr.Tab("Chat Demo"):
-        gr.Markdown(LANDING_DEMO_MD)
-        landing_scenario = gr.Dropdown(
-            choices=SCENARIO_OPTIONS,
-            value="Environmental analyst",
-            label="Choose a user type",
-        )
-        landing_prompt = gr.Textbox(
-            value=LANDING_SCENARIOS["Environmental analyst"]["prompt"],
+        gr.Markdown(CHAT_LANDING_MD)
+        with gr.Row():
+            chat_label = gr.Dropdown(
+                choices=list(CHAT_DEMOS),
+                value="Water over Hainan",
+                label="Choose a user type or request pattern",
+            )
+        chat_prompt = gr.Textbox(
+            value=CHAT_DEMOS["Water over Hainan"]["prompt"],
             label="Ask as a normal MCP client user",
             lines=2,
         )
-        with gr.Row():
-            gr.Button(LANDING_SCENARIOS["Environmental analyst"]["button"]).click(
-                lambda: set_landing_scenario("Environmental analyst"),
-                outputs=[landing_scenario, landing_prompt],
-                api_name=False,
-                queue=False,
-            )
-            gr.Button(LANDING_SCENARIOS["City planner"]["button"]).click(
-                lambda: set_landing_scenario("City planner"),
-                outputs=[landing_scenario, landing_prompt],
-                api_name=False,
-                queue=False,
-            )
-            gr.Button(LANDING_SCENARIOS["Disaster responder"]["button"]).click(
-                lambda: set_landing_scenario("Disaster responder"),
-                outputs=[landing_scenario, landing_prompt],
-                api_name=False,
-                queue=False,
-            )
-        with gr.Row():
-            gr.Button(LANDING_SCENARIOS["Agriculture researcher"]["button"]).click(
-                lambda: set_landing_scenario("Agriculture researcher"),
-                outputs=[landing_scenario, landing_prompt],
-                api_name=False,
-                queue=False,
-            )
-            gr.Button(LANDING_SCENARIOS["SAR data publisher"]["button"]).click(
-                lambda: set_landing_scenario("SAR data publisher"),
-                outputs=[landing_scenario, landing_prompt],
-                api_name=False,
-                queue=False,
-            )
-            gr.Button(LANDING_SCENARIOS["MCP developer"]["button"]).click(
-                lambda: set_landing_scenario("MCP developer"),
-                outputs=[landing_scenario, landing_prompt],
-                api_name=False,
-                queue=False,
-            )
-
-        landing_chat = gr.Chatbot(label="MCP-aware client response", height=430)
-        landing_trace = gr.JSON(label="Structured tool trace")
-        landing_run = gr.Button("Run chat demo", variant="primary")
-        landing_run.click(
-            run_landing_demo,
-            inputs=[landing_prompt, landing_scenario, landing_chat],
-            outputs=[landing_chat, landing_trace],
-            api_name=False,
-            queue=False,
-        )
-        landing_prompt.submit(
-            run_landing_demo,
-            inputs=[landing_prompt, landing_scenario, landing_chat],
-            outputs=[landing_chat, landing_trace],
+        chat_label.change(
+            load_chat_prompt,
+            inputs=chat_label,
+            outputs=chat_prompt,
             api_name=False,
             queue=False,
         )
 
-        with gr.Accordion("How the 9 tools connect in the landing demo", open=False):
-            gr.Markdown(LANDING_TOOL_MAP_MD)
+        gr.Markdown(
+            """
+            Click the buttons below. They only format fixed Markdown examples, so this
+            landing demo is safe even when the Space has no LLM key, no raster stack,
+            or no live catalog response.
+            """
+        )
+        sample_answer = gr.Markdown(
+            value="Click **Run fixed sample answer** to show how an MCP client would answer this request.",
+            label="Fixed sample answer",
+        )
+        tool_connection_out = gr.Markdown(
+            value="Click **Show how the 9 MCP tools connect** to display the tool-chain map.",
+            label="9-tool connection map",
+        )
+        with gr.Row():
+            gr.Button("Run fixed sample answer", variant="primary").click(
+                run_chat_demo,
+                inputs=[chat_label, chat_prompt],
+                outputs=sample_answer,
+                api_name=False,
+                queue=False,
+            )
+            gr.Button("Show how the 9 MCP tools connect", variant="secondary").click(
+                show_tool_connections,
+                outputs=tool_connection_out,
+                api_name=False,
+                queue=False,
+            )
 
-    with gr.Tab("Tool Explorer Guide"):
-        gr.Markdown(TOOL_EXPLORER_INTRO_MD)
+    with gr.Tab("Start Here"):
         gr.Markdown(WORKFLOW_MD)
         gr.Markdown(SOURCE_GUIDE_MD)
 
@@ -991,18 +767,11 @@ with gr.Blocks(
         s2_max_items = gr.Number(value=5, precision=0, label="Max items")
         s2_cloud = gr.Number(value=20, label="Max cloud cover (%)")
         s2_out = gr.JSON(label="Sentinel-2 search results")
-        s2_search_event = gr.Button("Search Sentinel-2", variant="primary").click(
+        gr.Button("Search Sentinel-2", variant="primary").click(
             search_open_data,
             inputs=[s2_bbox, s2_dates, s2_max_items, s2_cloud],
             outputs=s2_out,
             api_name="search_open_data",
-            queue=False,
-        )
-        s2_search_event.then(
-            store_sentinel2_search,
-            inputs=s2_out,
-            outputs=latest_s2_result,
-            api_name=False,
             queue=False,
         )
 
@@ -1047,30 +816,30 @@ with gr.Blocks(
             **Use for:** inspecting one Sentinel-2 scene selected from `search_open_data`.
 
             You do not need to manually search through the JSON. First run **Search Sentinel-2**,
-            then click **Use latest search result** here. If you want a fresh scene, click
-            **Search now and fill first item ID**.
+            then click **Use first returned item ID** here. If you want a fresh scene, click
+            **Regenerate search and use first ID**.
             """
         )
         item_id = gr.Textbox(
             value="",
-            placeholder="Click 'Use latest search result' or 'Search now and fill first item ID'",
+            placeholder="Click a button below to fill this from Search Sentinel-2",
             label="Selected Sentinel-2 item ID",
             info="This should be the `id` field returned by Search Sentinel-2.",
         )
         describe_bbox = gr.JSON(value=[109.0, 18.0, 111.0, 20.0], label="Bounding box")
-        selected_item_status = gr.Markdown("No item ID selected yet.")
+
         with gr.Row():
-            gr.Button("Use latest search result").click(
+            gr.Button("Use first returned item ID").click(
                 use_first_sentinel2_item,
-                inputs=[latest_s2_result, s2_bbox],
-                outputs=[item_id, describe_bbox, selected_item_status],
+                inputs=[s2_out, s2_bbox],
+                outputs=[item_id, describe_bbox],
                 api_name=False,
                 queue=False,
             )
-            gr.Button("Search now and fill first item ID").click(
+            gr.Button("Regenerate search and use first ID").click(
                 search_and_select_sentinel2_item,
                 inputs=[s2_bbox, s2_dates, s2_max_items, s2_cloud],
-                outputs=[s2_out, latest_s2_result, item_id, describe_bbox, selected_item_status],
+                outputs=[s2_out, item_id, describe_bbox],
                 api_name=False,
                 queue=False,
             )
