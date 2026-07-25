@@ -212,16 +212,18 @@ def describe_item(item_id: str, bbox: list[float]) -> dict[str, Any]:
     if not items:
         return {"error": f"item {item_id} not found in {bbox}"}
     it = items[0]
+    item_dict = it.to_dict()
+    properties = item_dict.get("properties", it.properties)
     return {
-        "stac_version": it.stac_version,
-        "id": it.id,
-        "collection": it.collection_id,
-        "datetime": str(it.datetime),
-        "bbox": it.bbox,
+        "stac_version": item_dict.get("stac_version", "1.0.0"),
+        "id": item_dict.get("id", it.id),
+        "collection": item_dict.get("collection", getattr(it, "collection_id", None)),
+        "datetime": properties.get("datetime", str(it.datetime)),
+        "bbox": item_dict.get("bbox", it.bbox),
         "properties": {
-            k: it.properties[k]
+            k: properties[k]
             for k in ("eo:cloud_cover", "platform", "gsd", "proj:epsg")
-            if k in it.properties
+            if k in properties
         },
         "n_assets": len(it.assets),
     }
