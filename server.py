@@ -2,6 +2,10 @@
 """
 Open Data with MCP — live-demo MCP server.
 
+Original author: Dongping Liu (dongping.liu@ieee.org), from the Hainan land-sea SAR
+project. Derived and packaged within the MCP4RemoteSensing ecosystem (with Luyao Zhang).
+MIT-licensed; the original copyright notice is retained in LICENSE.
+
 Exposes the *Registry of Open Data on AWS* (Sentinel-2 L2A) and a remote-sensing
 analysis tool as Model Context Protocol (MCP) tools, so that ANY MCP-capable
 LLM client (Claude Desktop, IDEs, custom agents, ...) can discover and call them.

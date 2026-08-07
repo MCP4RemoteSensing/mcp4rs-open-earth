@@ -20,6 +20,12 @@ tags:
 
 Ask the Earth a question: discover, analyze, and explain open satellite data through MCP.
 
+> **Provenance & attribution.** The MCP server in this repository is derived from the
+> original remote-sensing MCP server authored by **Dongping Liu** (from the Hainan
+> land-sea SAR project), developed with **Luyao Zhang**. It is MIT-licensed; the original
+> copyright notice is retained in [LICENSE](LICENSE), and authorship is noted in the
+> [server.py](server.py) header.
+
 ## Overview
 
 This repository provides two local run modes:
