@@ -32,6 +32,8 @@ THEME_CSS = """
     --mcp-surface: #FFFFFF;
     --mcp-ink: #17324D;
     --mcp-muted: #5C7285;
+    --mcp-link: #0A5B9A;
+    --mcp-badge-ink: #0B4F71;
     --mcp-hero-border: rgba(11, 110, 143, 0.18);
     --mcp-hero-bg: linear-gradient(135deg, rgba(11, 110, 143, 0.10), rgba(46, 125, 50, 0.08));
     --mcp-badge-bg: rgba(11, 110, 143, 0.10);
@@ -44,13 +46,32 @@ THEME_CSS = """
     --mcp-bg-start: #0A1622;
     --mcp-bg-stop: #0F2534;
     --mcp-surface: #112639;
-    --mcp-ink: #DCEAF4;
-    --mcp-muted: #AAC0D0;
+    --mcp-ink: #E6F1FA;
+    --mcp-muted: #B9CCDA;
+    --mcp-link: #8FD5FF;
+    --mcp-badge-ink: #BDE7FF;
     --mcp-hero-border: rgba(124, 199, 255, 0.32);
     --mcp-hero-bg: linear-gradient(135deg, rgba(17, 95, 130, 0.42), rgba(38, 104, 53, 0.35));
     --mcp-badge-bg: rgba(124, 199, 255, 0.14);
     --mcp-badge-border: rgba(124, 199, 255, 0.35);
     --mcp-callout-bg: rgba(88, 166, 111, 0.20);
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --mcp-bg-start: #0A1622;
+        --mcp-bg-stop: #0F2534;
+        --mcp-surface: #112639;
+        --mcp-ink: #E6F1FA;
+        --mcp-muted: #B9CCDA;
+        --mcp-link: #8FD5FF;
+        --mcp-badge-ink: #BDE7FF;
+        --mcp-hero-border: rgba(124, 199, 255, 0.32);
+        --mcp-hero-bg: linear-gradient(135deg, rgba(17, 95, 130, 0.42), rgba(38, 104, 53, 0.35));
+        --mcp-badge-bg: rgba(124, 199, 255, 0.14);
+        --mcp-badge-border: rgba(124, 199, 255, 0.35);
+        --mcp-callout-bg: rgba(88, 166, 111, 0.20);
+    }
 }
 
 .gradio-container {
@@ -65,6 +86,7 @@ THEME_CSS = """
 .gradio-container .prose h2,
 .gradio-container .prose h3 {
     color: var(--mcp-ink);
+    opacity: 1;
 }
 
 .gradio-container .prose code,
@@ -74,7 +96,20 @@ THEME_CSS = """
 }
 
 .gradio-container a {
-    color: color-mix(in srgb, var(--mcp-ocean) 84%, white 16%);
+    color: var(--mcp-link);
+}
+
+.gradio-container [role='tab'],
+.gradio-container button,
+.gradio-container label,
+.gradio-container input,
+.gradio-container textarea,
+.gradio-container select {
+    color: var(--mcp-ink);
+}
+
+.gradio-container [role='tab'][aria-selected='true'] {
+    color: var(--mcp-link);
 }
 
 .mcp-hero {
@@ -91,7 +126,7 @@ THEME_CSS = """
   border-radius: 999px;
     background: var(--mcp-badge-bg);
     border: 1px solid var(--mcp-badge-border);
-  color: var(--mcp-ocean);
+    color: var(--mcp-badge-ink);
   font-size: 0.86rem;
   font-weight: 600;
 }
