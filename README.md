@@ -16,7 +16,7 @@ tags:
   - geospatial
 ---
 
-# MCP4RS: Open Earth Remote Sensing MCP
+# MCP4RS: Open Earth Remote Sensing MCP [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21851165.svg)](https://doi.org/10.5281/zenodo.21851165)
 
 Ask the Earth a question: discover, analyze, and explain open satellite data through MCP.
 
