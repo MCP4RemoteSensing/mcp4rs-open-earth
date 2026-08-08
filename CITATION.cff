@@ -1,0 +1,7 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it using the metadata below."
+title: "MCP4RS Open Earth Explorer"
+authors:
+  - name: "Dongping Liu"
+  - name: "Luyao Zhang"
+license: MIT
