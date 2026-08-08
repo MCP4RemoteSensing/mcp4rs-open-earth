@@ -27,21 +27,61 @@ THEME_CSS = """
   --mcp-ocean: #0B6E8F;
   --mcp-forest: #2E7D32;
   --mcp-earth: #D6A85A;
-  --mcp-sky: #F3FAFC;
-  --mcp-ink: #17324D;
-  --mcp-muted: #5C7285;
+    --mcp-bg-start: #F3FAFC;
+    --mcp-bg-stop: #FFFFFF;
+    --mcp-surface: #FFFFFF;
+    --mcp-ink: #17324D;
+    --mcp-muted: #5C7285;
+    --mcp-hero-border: rgba(11, 110, 143, 0.18);
+    --mcp-hero-bg: linear-gradient(135deg, rgba(11, 110, 143, 0.10), rgba(46, 125, 50, 0.08));
+    --mcp-badge-bg: rgba(11, 110, 143, 0.10);
+    --mcp-badge-border: rgba(11, 110, 143, 0.20);
+    --mcp-callout-bg: rgba(46, 125, 50, 0.07);
+}
+
+[data-theme='dark'],
+.dark {
+    --mcp-bg-start: #0A1622;
+    --mcp-bg-stop: #0F2534;
+    --mcp-surface: #112639;
+    --mcp-ink: #DCEAF4;
+    --mcp-muted: #AAC0D0;
+    --mcp-hero-border: rgba(124, 199, 255, 0.32);
+    --mcp-hero-bg: linear-gradient(135deg, rgba(17, 95, 130, 0.42), rgba(38, 104, 53, 0.35));
+    --mcp-badge-bg: rgba(124, 199, 255, 0.14);
+    --mcp-badge-border: rgba(124, 199, 255, 0.35);
+    --mcp-callout-bg: rgba(88, 166, 111, 0.20);
 }
 
 .gradio-container {
-  background: linear-gradient(180deg, var(--mcp-sky), #ffffff 34%);
+    background: linear-gradient(180deg, var(--mcp-bg-start), var(--mcp-bg-stop) 34%);
   color: var(--mcp-ink);
 }
 
+.gradio-container .prose,
+.gradio-container .prose p,
+.gradio-container .prose li,
+.gradio-container .prose h1,
+.gradio-container .prose h2,
+.gradio-container .prose h3 {
+    color: var(--mcp-ink);
+}
+
+.gradio-container .prose code,
+.gradio-container .prose pre {
+    background: color-mix(in srgb, var(--mcp-surface) 86%, black 14%);
+    color: var(--mcp-ink);
+}
+
+.gradio-container a {
+    color: color-mix(in srgb, var(--mcp-ocean) 84%, white 16%);
+}
+
 .mcp-hero {
-  border: 1px solid rgba(11, 110, 143, 0.18);
+    border: 1px solid var(--mcp-hero-border);
   border-radius: 8px;
   padding: 18px 20px;
-  background: linear-gradient(135deg, rgba(11, 110, 143, 0.10), rgba(46, 125, 50, 0.08));
+    background: var(--mcp-hero-bg);
 }
 
 .mcp-badges span {
@@ -49,8 +89,8 @@ THEME_CSS = """
   margin: 4px 6px 4px 0;
   padding: 4px 9px;
   border-radius: 999px;
-  background: rgba(11, 110, 143, 0.10);
-  border: 1px solid rgba(11, 110, 143, 0.20);
+    background: var(--mcp-badge-bg);
+    border: 1px solid var(--mcp-badge-border);
   color: var(--mcp-ocean);
   font-size: 0.86rem;
   font-weight: 600;
@@ -59,13 +99,17 @@ THEME_CSS = """
 .mcp-callout {
   border-left: 4px solid var(--mcp-forest);
   padding: 10px 14px;
-  background: rgba(46, 125, 50, 0.07);
+    background: var(--mcp-callout-bg);
   border-radius: 6px;
 }
 
 .mcp-small {
   color: var(--mcp-muted);
   font-size: 0.92rem;
+}
+
+.mcp-progressive-grid {
+    gap: 12px;
 }
 """
 
@@ -134,6 +178,20 @@ bbox + date -> get_nightlights -> NASA GIBS image URL
 
 SAR metadata + asset URLs -> create_stac_item -> STAC Item JSON
 ```
+"""
+
+
+PROGRESSIVE_MODE_MD = """
+## Progressive mode
+
+Use this tab for a step-by-step run with fewer decisions each time.
+
+1. Load source registry.
+2. Search Sentinel-2 with one bbox/date preset.
+3. Select the first returned item and describe it.
+4. Run a quick NDWI demo from ready band URLs.
+
+You can still use the full expert tabs when you need complete control.
 """
 
 
@@ -539,6 +597,19 @@ def search_and_select_sentinel2_item(
     return result, item_id, _as_bbox(bbox)
 
 
+def progressive_describe_first_item(search_result: Any, bbox: list[float]) -> tuple[str, dict[str, Any]]:
+    """Pick the first Sentinel-2 item and return its metadata in one step."""
+    item_id = _first_item_id(search_result)
+    if not item_id:
+        raise gr.Error("Run Step 2 first. No Sentinel-2 item ID was found in the current result.")
+    return item_id, describe_item(item_id, bbox)
+
+
+def run_ndwi_demo() -> dict[str, Any]:
+    """Run a stable NDWI demo call for the progressive workflow."""
+    return spectral_index("ndwi", "demo://sentinel-2/green.tif", "demo://sentinel-2/nir.tif")
+
+
 def list_sources() -> dict[str, Any]:
     """List the open satellite data sources this MCP server can query."""
     return _list_sources()
@@ -727,6 +798,51 @@ with gr.Blocks(
     with gr.Tab("Start Here"):
         gr.Markdown(WORKFLOW_MD)
         gr.Markdown(SOURCE_GUIDE_MD)
+
+    with gr.Tab("Progressive Mode"):
+        gr.Markdown(PROGRESSIVE_MODE_MD)
+        with gr.Row(elem_classes=["mcp-progressive-grid"]):
+            p_bbox = gr.JSON(value=[109.0, 18.0, 111.0, 20.0], label="Step 2 bbox")
+            p_dates = gr.Textbox(value="2025-01-01/2025-06-30", label="Step 2 date range")
+        with gr.Row(elem_classes=["mcp-progressive-grid"]):
+            p_max_items = gr.Number(value=5, precision=0, label="Step 2 max items")
+            p_cloud = gr.Number(value=20, label="Step 2 max cloud cover (%)")
+
+        p_sources_out = gr.JSON(label="Step 1 output: source registry")
+        p_search_out = gr.JSON(label="Step 2 output: Sentinel-2 results")
+        p_selected_item = gr.Textbox(label="Step 3 output: selected item ID")
+        p_describe_out = gr.JSON(label="Step 3 output: item metadata")
+        p_ndwi_out = gr.JSON(label="Step 4 output: NDWI result")
+
+        with gr.Row():
+            gr.Button("Step 1: Load sources", variant="secondary").click(
+                list_sources,
+                outputs=p_sources_out,
+                api_name=False,
+                queue=False,
+            )
+            gr.Button("Step 2: Search Sentinel-2", variant="primary").click(
+                search_open_data,
+                inputs=[p_bbox, p_dates, p_max_items, p_cloud],
+                outputs=p_search_out,
+                api_name=False,
+                queue=False,
+            )
+
+        with gr.Row():
+            gr.Button("Step 3: Select + describe first item", variant="primary").click(
+                progressive_describe_first_item,
+                inputs=[p_search_out, p_bbox],
+                outputs=[p_selected_item, p_describe_out],
+                api_name=False,
+                queue=False,
+            )
+            gr.Button("Step 4: Run NDWI demo", variant="secondary").click(
+                run_ndwi_demo,
+                outputs=p_ndwi_out,
+                api_name=False,
+                queue=False,
+            )
 
     with gr.Tab("1. Sources"):
         gr.Markdown(
